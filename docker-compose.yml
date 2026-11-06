@@ -1,0 +1,75 @@
+# OrderFlow: local development dependencies (Sprint 1).
+#
+# Runs PostgreSQL and RabbitMQ only. The Order API and Worker run on the host
+# with `npm run start:dev`. They are added to this file in Sprint 3.
+#
+#   docker compose up -d        start in the background
+#   docker compose ps           both services should become "healthy"
+#   docker compose logs -f      follow logs
+#   docker compose down         stop (data is kept in the named volumes)
+#   docker compose down -v      stop AND delete all data
+#
+# Values come from .env in this folder (see .env.example).
+
+name: orderflow
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: orderflow-postgres
+    restart: unless-stopped
+    environment:
+      # On first start with an empty volume, the image creates this user and database.
+      # The :? syntax stops Compose with an error if the variable is missing.
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    ports:
+      # host:container. Host port 5434 because this machine already runs
+      # PostgreSQL on 5432 (installed in WSL) and 5433 (installed on Windows).
+      # Bound to 127.0.0.1 so the database is reachable only from this machine.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5434}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # $$ passes a literal $ to the container, so its own env vars are used.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - orderflow
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: orderflow-rabbitmq
+    # RabbitMQ stores data under a directory named after its node name, which
+    # includes the hostname. A fixed hostname keeps the same data directory
+    # across container re-creation; otherwise queues and messages "disappear".
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?set RABBITMQ_DEFAULT_USER in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?set RABBITMQ_DEFAULT_PASS in .env}
+    ports:
+      - "127.0.0.1:5672:5672"     # AMQP (applications)
+      - "127.0.0.1:15672:15672"   # Management UI: http://localhost:15672
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - orderflow
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+
+networks:
+  orderflow:
+    name: orderflow
