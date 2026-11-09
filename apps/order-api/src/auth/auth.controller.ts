@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Env } from '../config/env.validation.js';
 import type { UserResponse } from '../users/user.entity.js';
 import { AuthService, type LoginResponse } from './auth.service.js';
@@ -7,6 +8,7 @@ import type { AuthUser } from './auth.types.js';
 import { CurrentUser, Public } from './decorators.js';
 import { LoginDto, RegisterDto } from './dto/credentials.dto.js';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -31,6 +33,7 @@ export class AuthController {
     );
   }
 
+  @ApiBearerAuth()
   @Get('me')
   me(@CurrentUser() user: AuthUser): Promise<UserResponse> {
     return this.auth.me(user.id);

@@ -6,6 +6,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { AuthModule } from './auth/auth.module.js';
 import { validateEnv, type Env } from './config/env.validation.js';
 import { buildTypeOrmOptions } from './database/typeorm-options.js';
+import { MetricsModule } from './metrics/metrics.module.js';
 import { HealthModule } from './health/health.module.js';
 import { OrdersModule } from './orders/orders.module.js';
 import { ProductsModule } from './products/products.module.js';
@@ -40,7 +41,7 @@ import { ProductsModule } from './products/products.module.js';
           },
           redact: ['req.headers.authorization', 'req.headers.cookie'],
           autoLogging: {
-            ignore: (req) => req.url?.startsWith('/health') ?? false,
+            ignore: (req) => /^\/(health|metrics)/.test(req.url ?? ''),
           },
         },
       }),
@@ -59,6 +60,7 @@ import { ProductsModule } from './products/products.module.js';
         }),
     }),
 
+    MetricsModule,
     HealthModule,
     AuthModule,
     ProductsModule,

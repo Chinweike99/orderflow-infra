@@ -5,6 +5,7 @@ import {
   TerminusModule,
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
+import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators.js';
 
 /**
@@ -14,6 +15,7 @@ import { Public } from '../auth/decorators.js';
  * - /health/ready: the pod can serve traffic (database reachable). Failing
  *   it removes the pod from the Service/load balancer until it recovers.
  */
+@ApiTags('health')
 @Controller('health')
 export class HealthController {
   constructor(

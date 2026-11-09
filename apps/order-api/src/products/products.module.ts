@@ -1,4 +1,5 @@
 import { Controller, Get, Module } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Public } from '../auth/decorators.js';
@@ -11,6 +12,7 @@ interface ProductResponse {
   price: string;
 }
 
+@ApiTags('products')
 @Controller('products')
 export class ProductsController {
   constructor(

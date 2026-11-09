@@ -10,6 +10,7 @@ import {
   Query,
   Res,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import type { AuthUser } from '../auth/auth.types.js';
 import { CurrentUser } from '../auth/decorators.js';
@@ -20,6 +21,8 @@ import { OrdersService } from './orders.service.js';
 
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9_\-:.]{1,100}$/;
 
+@ApiTags('orders')
+@ApiBearerAuth()
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
@@ -29,6 +32,11 @@ export class OrdersController {
    * key returns the original order instead of creating a duplicate.
    */
   @Post()
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: false,
+    description: 'Retrying with the same key returns the original order',
+  })
   async create(
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateOrderDto,
