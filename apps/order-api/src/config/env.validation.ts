@@ -29,6 +29,16 @@ export const envSchema = z.object({
   JWT_EXPIRES_IN_SECONDS: z.coerce.number().int().positive().default(3600),
 
   CURRENCY: z.string().length(3).toUpperCase().default('USD'),
+
+  RABBITMQ_URL: z
+    .string()
+    .regex(/^amqps?:\/\//, 'RABBITMQ_URL must start with amqp:// or amqps://'),
+  OUTBOX_RELAY_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(100).default(1000),
+  OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(500).default(50),
 });
 
 export type Env = z.infer<typeof envSchema>;

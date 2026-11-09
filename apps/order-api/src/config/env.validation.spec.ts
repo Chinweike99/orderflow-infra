@@ -6,6 +6,7 @@ const VALID = {
   DB_PASSWORD: 'secret',
   DB_NAME: 'orderflow',
   JWT_SECRET: 'x'.repeat(32),
+  RABBITMQ_URL: 'amqp://user:pass@localhost:5672',
 };
 
 describe('validateEnv', () => {
