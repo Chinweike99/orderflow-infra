@@ -56,6 +56,7 @@ erDiagram
         varchar event_type "e.g. order.created"
         jsonb payload
         int publish_attempts
+        text last_error "nullable - last publish failure"
         timestamptz created_at
         timestamptz published_at "nullable - NULL means not yet published"
     }
@@ -88,7 +89,9 @@ When an order is created, the API inserts the order, its items **and** an `order
 
 This guarantees that an order is never saved without its event, or the reverse. The relay may publish the same event twice (for example, if it crashes after publishing but before updating the row). That's acceptable because the worker is idempotent.
 
-Index: a partial index on `created_at WHERE published_at IS NULL`.
+Index: a partial index on `created_at WHERE published_at IS NULL`. `last_error` records the most recent publish failure and is cleared once the event is published.
+
+Orders created before the outbox existed were given their missing events by a one-off data migration (`BackfillPendingOrderEvents`), so no order is left `PENDING` forever.
 
 ### `processed_messages` (idempotent consumer)
 Before processing a message, the worker inserts `(message_id, consumer)` **in the same transaction** as the order status update. If the insert hits the primary key, the message was already handled, so the worker acknowledges it and skips it.

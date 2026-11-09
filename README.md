@@ -4,7 +4,7 @@ A cloud-native order management system, built to show production-style DevOps on
 
 Two NestJS services, an **Order API** and an **Order Worker**, communicate through RabbitMQ. They're containerized with Docker, run on Kubernetes (Minikube locally, Amazon EKS in the cloud), store data in PostgreSQL (Amazon RDS), are built and deployed by Jenkins, are exposed to clients through AWS API Gateway, and are monitored with Prometheus and Grafana.
 
-> **Status:** In progress, Sprint 0 (foundation). See the [project plan](docs/PROJECT_PLAN.md).
+> **Status:** In progress, Sprint 2 (messaging and the Order Worker). See the [project plan](docs/PROJECT_PLAN.md).
 
 ---
 
@@ -77,6 +77,8 @@ This is a single repository by design ([ADR-0001](docs/adr/0001-monorepo.md)). I
 
 - [Project plan and sprints](docs/PROJECT_PLAN.md)
 - [Database schema](docs/database-schema.md)
+- [Manual testing guide (Postman + RabbitMQ)](docs/testing-guide.md)
+- Services: [Order API](apps/order-api/README.md) · [Order Worker](apps/order-worker/README.md)
 - Architecture decisions:
   - [ADR-0001: Monorepo](docs/adr/0001-monorepo.md)
   - [ADR-0002: Transactional outbox](docs/adr/0002-transactional-outbox.md)
@@ -93,7 +95,20 @@ From Sprint 9 onward, merges to `main` trigger a deployment to EKS.
 
 ## Running locally
 
-_Coming in Sprints 1–3._
+Requirements: Node.js 24, Docker.
+
+```bash
+cp .env.example .env                 # then set real passwords and a JWT_SECRET
+docker compose up -d                 # PostgreSQL + RabbitMQ; wait for "healthy"
+
+cd apps/order-api && npm install && npm run build && npm run migration:run
+npm run start:dev                    # API on $PORT, Swagger UI at /docs
+
+cd ../order-worker && npm install
+npm run start:dev                    # worker; probes and metrics on $WORKER_PORT
+```
+
+RabbitMQ management UI: http://localhost:15672. Running the API and worker in containers comes in Sprint 3.
 
 ## Deployment
 

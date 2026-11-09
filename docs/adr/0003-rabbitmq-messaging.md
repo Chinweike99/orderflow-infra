@@ -20,14 +20,17 @@ Use RabbitMQ, running in Kubernetes (Docker Compose locally, a StatefulSet on EK
 | Resource | Type | Purpose |
 |---|---|---|
 | `orders` | Topic exchange | The Order API's outbox relay publishes `order.created` here |
-| `order-processing` | Durable queue, bound to `order.created` | The worker consumes from it |
-| `order-processing.retry` | Queue with a message TTL that dead-letters back to `order-processing` | Delayed retry |
-| `order-processing.dlq` | Durable queue | Messages that failed all attempts |
+| `order-processing` | Quorum queue, bound to `order.created`; rejected messages dead-letter to the DLQ | The worker consumes from it |
+| `order-processing.retry` | Quorum queue with a 5-second message TTL that dead-letters back to `order-processing`; no consumers | Delayed retry |
+| `order-processing.dlq` | Quorum queue | Messages that failed all attempts or can never succeed |
+
+All queues are **quorum queues**, RabbitMQ's recommended durable, replicated queue type. Both services declare the topology on connect (identical code in each app), so either can start first.
 
 Rules:
 - Messages are persistent, and publishing uses publisher confirms.
 - The worker acknowledges manually, **only after** its database transaction commits.
-- On a temporary failure, the message goes to the retry queue. After **3** attempts it goes to the DLQ, and the order is marked `FAILED`.
+- On a temporary failure, the worker publishes a copy to the retry queue with the header `x-attempt` incremented, waits for the confirm, then acknowledges the original. After **3** attempts the order is marked `FAILED` and the message is rejected into the DLQ.
+- A declined payment is a business outcome, not a failure: the order becomes `FAILED` and the message is acknowledged, with no retry.
 - A permanently invalid message goes straight to the DLQ.
 - `prefetch` limits how many unacknowledged messages each worker holds.
 
