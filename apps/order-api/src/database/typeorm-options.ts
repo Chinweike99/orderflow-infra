@@ -1,10 +1,11 @@
 import type { DataSourceOptions } from 'typeorm';
 import { OrderItem } from '../orders/entities/order-item.entity.js';
 import { Order } from '../orders/entities/order.entity.js';
+import { OutboxEvent } from '../outbox/outbox-event.entity.js';
 import { Product } from '../products/product.entity.js';
 import { User } from '../users/user.entity.js';
 
-export const ENTITIES = [User, Product, Order, OrderItem];
+export const ENTITIES = [User, Product, Order, OrderItem, OutboxEvent];
 
 export interface DbSettings {
   host: string;
