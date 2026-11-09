@@ -19,6 +19,10 @@ import {
   Order,
 } from './entities/order.entity.js';
 import { OrderStatus } from './entities/order-status.enum.js';
+import { MetricsService } from '../metrics/metrics.service.js';
+import { ORDER_CREATED } from '../messaging/topology.js';
+import { OutboxEvent } from '../outbox/outbox-event.entity.js';
+import { OutboxRelay } from '../outbox/outbox.relay.js';
 import { PricingError, priceOrder } from './order-pricing.js';
 import { toOrderResponse, type OrderResponse } from './order.response.js';
 
@@ -34,6 +38,8 @@ export class OrdersService {
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(Order) private readonly orders: Repository<Order>,
     private readonly config: ConfigService<Env, true>,
+    private readonly outboxRelay: OutboxRelay,
+    private readonly metrics: MetricsService,
   ) {}
 
   async create(
@@ -62,9 +68,28 @@ export class OrdersService {
           failureReason: null,
           items: priced.lines.map((line) => manager.create(OrderItem, line)),
         });
-        return manager.save(order);
-        // Sprint 2: the order.created outbox event is written here, in the same transaction.
+        const saved = await manager.save(order);
+
+        // Transactional outbox (ADR-0002): the event is committed together
+        // with the order, or not at all. The relay publishes it to RabbitMQ.
+        await manager.save(
+          manager.create(OutboxEvent, {
+            aggregateType: 'order',
+            aggregateId: saved.id,
+            eventType: ORDER_CREATED,
+            payload: {
+              orderId: saved.id,
+              userId: saved.userId,
+              totalAmount: saved.totalAmount,
+              currency: saved.currency,
+            },
+          }),
+        );
+        return saved;
       });
+
+      this.metrics.ordersCreatedTotal.inc();
+      this.outboxRelay.kick(); // publish now instead of waiting for the next poll
       return { order: toOrderResponse(order), replayed: false };
     } catch (error) {
       // Two identical requests raced each other: return the one that won.
