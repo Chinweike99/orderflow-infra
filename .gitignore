@@ -30,3 +30,6 @@ Thumbs.db
 # Local AWS / tooling output
 .aws-sam/
 *.tfstate*
+
+# Personal planning notes (kept locally, not published)
+docs/PROJECT_PLAN.md
