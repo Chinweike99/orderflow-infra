@@ -1,0 +1,25 @@
+# Build output and caches from the host — the image builds its own
+node_modules
+dist
+*.tsbuildinfo
+coverage
+
+# Secrets — env vars are supplied at runtime, never baked into the image
+.env
+.env.*
+
+# Not needed to build or run the app
+test
+vitest.config*.ts
+*.md
+.git
+.gitignore
+.gitattributes
+.prettierrc
+.oxlintrc.json
+.vscode
+npm-debug.log*
+
+# Docker files themselves
+Dockerfile*
+.dockerignore
