@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: orderflow
+  labels:
+    app.kubernetes.io/part-of: orderflow
+    # Pod Security: block clearly unsafe pods; warn about anything
+    # that falls short of the strictest standard.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
