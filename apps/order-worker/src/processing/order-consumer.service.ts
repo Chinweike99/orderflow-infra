@@ -101,7 +101,10 @@ export class OrderConsumer
   }
 
   /** SIGTERM: stop taking new messages and let in-flight ones finish. */
-  async beforeApplicationShutdown(): Promise<void> {
+  async beforeApplicationShutdown(signal?: string): Promise<void> {
+    this.logger.info(
+      `Shutdown started (${signal ?? 'no signal'}): stopping consumption`,
+    );
     this.stopping = true;
     if (this.consumeChannel && this.consumerTag) {
       await this.consumeChannel.cancel(this.consumerTag).catch(() => undefined);
@@ -109,21 +112,32 @@ export class OrderConsumer
     const timeoutMs = this.config.get('WORKER_SHUTDOWN_TIMEOUT_MS', {
       infer: true,
     });
-    if (this.inFlight.size > 0) {
-      this.logger.info(
-        `Waiting for ${this.inFlight.size} in-flight message(s)`,
+    const pending = this.inFlight.size;
+    if (pending === 0) return;
+
+    this.logger.info(`Waiting for ${pending} in-flight message(s)`);
+    let timer: NodeJS.Timeout | undefined;
+    const drained = await Promise.race([
+      Promise.allSettled(this.inFlight).then(() => true),
+      new Promise<false>((resolve) => {
+        timer = setTimeout(() => resolve(false), timeoutMs);
+      }),
+    ]);
+    clearTimeout(timer);
+    if (drained) {
+      this.logger.info('In-flight messages finished');
+    } else {
+      this.logger.warn(
+        `Shutdown timeout (${timeoutMs} ms) reached with ${this.inFlight.size} message(s) unfinished; RabbitMQ will redeliver them`,
       );
     }
-    await Promise.race([
-      Promise.allSettled(this.inFlight),
-      new Promise((resolve) => setTimeout(resolve, timeoutMs)),
-    ]);
   }
 
   async onApplicationShutdown(): Promise<void> {
     // Anything still unacknowledged is redelivered by RabbitMQ to another worker.
     await this.channel?.close().catch(() => undefined);
     await this.connection?.close().catch(() => undefined);
+    this.logger.info('Shutdown complete: RabbitMQ connection closed');
   }
 
   private track(work: Promise<void>): void {
